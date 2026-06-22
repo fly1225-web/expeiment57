@@ -1,0 +1,487 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>数理统计 · 尝汤判咸淡 · 样本均值波动动画</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 20px;
+            background: #f7f5f0;
+            font-family: 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+        }
+        .container {
+            background: white;
+            border-radius: 24px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.08);
+            padding: 30px 30px 20px;
+            max-width: 750px;
+            width: 100%;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        h2 {
+            margin: 0 0 8px;
+            color: #3a2c1b;
+            font-weight: 600;
+            font-size: 1.8em;
+        }
+        .subtitle {
+            color: #8b7355;
+            margin-bottom: 20px;
+            font-size: 0.95em;
+        }
+        .scene {
+            position: relative;
+            width: 100%;
+            height: 240px;
+            margin-bottom: 20px;
+            display: flex;
+            justify-content: center;
+            align-items: flex-end;
+        }
+        /* 汤锅 */
+        .pot {
+            position: absolute;
+            bottom: 10px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 260px;
+            height: 130px;
+            background: linear-gradient(to bottom, #a0a0a0, #707070);
+            border-radius: 0 0 130px 130px;
+            border: 5px solid #4a4a4a;
+            box-shadow: inset 0 -10px 20px rgba(0,0,0,0.3);
+            overflow: hidden;
+        }
+        .pot::after {
+            content: "";
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            height: 60%;
+            background: radial-gradient(circle at 50% 0%, rgba(255,200,100,0.6), rgba(200,150,50,0.4));
+            border-radius: 0 0 125px 125px;
+        }
+        .pot-label {
+            position: absolute;
+            bottom: 15px;
+            left: 50%;
+            transform: translateX(-50%);
+            color: #fff;
+            font-weight: bold;
+            font-size: 1em;
+            text-shadow: 1px 1px 2px black;
+            z-index: 2;
+        }
+        /* 勺子 */
+        .spoon {
+            position: absolute;
+            left: 58%;
+            top: 5px;
+            width: 30px;
+            height: 100px;
+            transform: rotate(25deg);
+            transition: top 0.4s cubic-bezier(0.25, 0.1, 0.25, 1);
+            z-index: 10;
+            pointer-events: none;
+        }
+        .spoon-handle {
+            position: absolute;
+            top: 0;
+            left: 12px;
+            width: 6px;
+            height: 65px;
+            background: #b08968;
+            border-radius: 3px;
+            box-shadow: 1px 1px 3px rgba(0,0,0,0.3);
+        }
+        .spoon-bowl {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            width: 30px;
+            height: 28px;
+            background: #c49a6c;
+            border-radius: 50%;
+            border: 2px solid #8b5a2b;
+            box-shadow: inset -3px -3px 5px rgba(0,0,0,0.2);
+        }
+        .spoon-value {
+            position: absolute;
+            left: 70%;
+            top: -15px;
+            background: #ffebcc;
+            border: 2px solid #b08968;
+            border-radius: 12px;
+            padding: 2px 10px;
+            font-weight: bold;
+            font-size: 1em;
+            color: #5c3a1e;
+            white-space: nowrap;
+            display: none;
+            z-index: 20;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+        }
+        .chart-area {
+            width: 100%;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        canvas {
+            width: 100%;
+            height: auto;
+            background: #fefefe;
+            border: 1px solid #ddd;
+            border-radius: 12px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+        }
+        .info-panel {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            width: 100%;
+            margin: 12px 0 8px;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+        .stats {
+            font-size: 1.1em;
+            color: #3a2c1b;
+            background: #fef5e7;
+            padding: 8px 16px;
+            border-radius: 20px;
+            border: 1px solid #e6cfa0;
+        }
+        .stats span {
+            font-weight: bold;
+            color: #b45f06;
+        }
+        .buttons {
+            display: flex;
+            gap: 12px;
+        }
+        button {
+            padding: 10px 22px;
+            border: none;
+            border-radius: 30px;
+            font-size: 1em;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+        }
+        .btn-scoop {
+            background: #f0b27a;
+            color: #3e2723;
+        }
+        .btn-scoop:hover {
+            background: #e59866;
+        }
+        .btn-scoop:disabled {
+            background: #ccc;
+            color: #666;
+            cursor: not-allowed;
+            box-shadow: none;
+        }
+        .btn-reset {
+            background: #f5f5f5;
+            color: #555;
+            border: 1px solid #ccc;
+        }
+        .btn-reset:hover {
+            background: #e8e8e8;
+        }
+        .insight {
+            margin-top: 8px;
+            font-style: italic;
+            color: #7d6608;
+            background: #fef9e7;
+            padding: 8px 18px;
+            border-radius: 20px;
+            border-left: 4px solid #f1c40f;
+            text-align: center;
+            font-size: 0.95em;
+        }
+    </style>
+</head>
+<body>
+<div class="container">
+    <h2>🥣 尝汤判咸淡 · 样本均值的波动</h2>
+    <div class="subtitle">总体含盐量 μ = 0.80%  |  每次舀取 n = 5 滴  |  重复抽样10次</div>
+
+    <div class="scene">
+        <div class="pot">
+            <div class="pot-label">🍲 整锅汤 (总体)</div>
+        </div>
+        <div class="spoon" id="spoon">
+            <div class="spoon-handle"></div>
+            <div class="spoon-bowl"></div>
+            <div class="spoon-value" id="spoonValue">0.79%</div>
+        </div>
+    </div>
+
+    <div class="chart-area">
+        <canvas id="chartCanvas" width="600" height="280"></canvas>
+    </div>
+
+    <div class="info-panel">
+        <div class="stats">
+            📊 当前抽样次数：<span id="sampleCount">0</span> / 10
+            &nbsp;&nbsp;|&nbsp;&nbsp;
+            最近样本均值：<span id="currentMean">--</span>
+        </div>
+        <div class="buttons">
+            <button class="btn-scoop" id="scoopBtn">🥄 舀一勺</button>
+            <button class="btn-reset" id="resetBtn">↺ 重新开始</button>
+        </div>
+    </div>
+    <div class="insight" id="insightText">
+        💡 每一次舀出的样本均值都不同，它们围绕总体均值0.80%上下波动，但没有一次恰好等于0.80%——这就是统计量的随机性。
+    </div>
+</div>
+
+<script>
+    (function() {
+        // ---------- 预定义样本均值数组（对应10次抽样）----------
+        const sampleMeans = [0.79, 0.82, 0.77, 0.81, 0.80, 0.83, 0.76, 0.79, 0.82, 0.78];
+        const totalSamples = sampleMeans.length;
+        const populationMean = 0.80;   // 总体均值
+
+        // ---------- DOM 元素 ----------
+        const spoon = document.getElementById('spoon');
+        const spoonValueDiv = document.getElementById('spoonValue');
+        const canvas = document.getElementById('chartCanvas');
+        const ctx = canvas.getContext('2d');
+        const scoopBtn = document.getElementById('scoopBtn');
+        const resetBtn = document.getElementById('resetBtn');
+        const sampleCountSpan = document.getElementById('sampleCount');
+        const currentMeanSpan = document.getElementById('currentMean');
+        const insightText = document.getElementById('insightText');
+
+        // ---------- 状态 ----------
+        let currentIndex = 0;               // 已经完成的抽样次数（0～10）
+        let isAnimating = false;           // 勺子动画进行中
+        let collectedMeans = [];           // 已收集的样本均值
+
+        // ---------- 勺子动画控制 ----------
+        function animateSpoon(callback) {
+            if (isAnimating) return;
+            isAnimating = true;
+            // 勺子向下移动（伸入汤中）
+            spoon.style.top = '108px';     // 向下移动到接近锅底
+            // 0.4秒后向上移动（舀出）
+            setTimeout(() => {
+                spoon.style.top = '5px';   // 回到初始位置
+                // 再0.4秒后执行回调（添加数据点）
+                setTimeout(() => {
+                    isAnimating = false;
+                    if (callback) callback();
+                }, 400);
+            }, 400);
+        }
+
+        // ---------- 图表绘制 ----------
+        function drawChart() {
+            const width = canvas.width;
+            const height = canvas.height;
+            ctx.clearRect(0, 0, width, height);
+
+            // 绘图区域边距
+            const margin = { top: 30, right: 30, bottom: 40, left: 55 };
+            const plotWidth = width - margin.left - margin.right;
+            const plotHeight = height - margin.top - margin.bottom;
+
+            // 坐标范围
+            const xMin = 0, xMax = 10;
+            const yMin = 0.75, yMax = 0.85;
+            const yRange = yMax - yMin;
+
+            // 坐标转换函数
+            const scaleX = (val) => margin.left + (val - xMin) / (xMax - xMin) * plotWidth;
+            const scaleY = (val) => margin.top + plotHeight - (val - yMin) / yRange * plotHeight;
+
+            // 绘制背景网格
+            ctx.strokeStyle = '#e0e0e0';
+            ctx.lineWidth = 0.5;
+            // 水平网格线 (每0.01一条短线，但只画主要刻度)
+            for (let y = 0.75; y <= 0.85; y += 0.01) {
+                const yPos = scaleY(y);
+                ctx.beginPath();
+                ctx.moveTo(margin.left, yPos);
+                ctx.lineTo(width - margin.right, yPos);
+                ctx.strokeStyle = '#f0f0f0';
+                ctx.stroke();
+            }
+            // 垂直网格线
+            for (let x = 0; x <= 10; x++) {
+                const xPos = scaleX(x);
+                ctx.beginPath();
+                ctx.moveTo(xPos, margin.top);
+                ctx.lineTo(xPos, height - margin.bottom);
+                ctx.strokeStyle = '#f0f0f0';
+                ctx.stroke();
+            }
+
+            // 绘制坐标轴
+            ctx.strokeStyle = '#333';
+            ctx.lineWidth = 1.5;
+            // X轴
+            ctx.beginPath();
+            ctx.moveTo(margin.left, height - margin.bottom);
+            ctx.lineTo(width - margin.right, height - margin.bottom);
+            ctx.stroke();
+            // Y轴
+            ctx.beginPath();
+            ctx.moveTo(margin.left, margin.top);
+            ctx.lineTo(margin.left, height - margin.bottom);
+            ctx.stroke();
+
+            // 刻度标签
+            ctx.fillStyle = '#555';
+            ctx.font = '11px "PingFang SC","Microsoft YaHei",sans-serif';
+            // X轴标签 (1~10)
+            for (let i = 1; i <= 10; i++) {
+                const xPos = scaleX(i);
+                ctx.fillText(i, xPos - 4, height - margin.bottom + 18);
+            }
+            ctx.fillText('抽样次数', width - margin.right - 30, height - margin.bottom + 30);
+            // Y轴标签
+            ctx.textAlign = 'right';
+            for (let y = 0.75; y <= 0.85; y += 0.01) {
+                const yPos = scaleY(y);
+                ctx.fillText(y.toFixed(2) + '%', margin.left - 8, yPos + 4);
+            }
+            ctx.textAlign = 'start';
+            ctx.fillText('含盐量', margin.left - 10, margin.top - 10);
+
+            // 绘制总体均值参考线 (红色虚线)
+            const meanY = scaleY(populationMean);
+            ctx.strokeStyle = '#e74c3c';
+            ctx.lineWidth = 2;
+            ctx.setLineDash([6, 4]);
+            ctx.beginPath();
+            ctx.moveTo(margin.left, meanY);
+            ctx.lineTo(width - margin.right, meanY);
+            ctx.stroke();
+            ctx.setLineDash([]);
+            // 标注
+            ctx.fillStyle = '#e74c3c';
+            ctx.font = 'bold 11px "PingFang SC","Microsoft YaHei",sans-serif';
+            ctx.fillText('总体均值 μ=0.80%', width - margin.right - 110, meanY - 6);
+
+            // 绘制已收集的样本均值点
+            if (collectedMeans.length > 0) {
+                // 连线
+                ctx.strokeStyle = '#2c3e50';
+                ctx.lineWidth = 1.8;
+                ctx.beginPath();
+                for (let i = 0; i < collectedMeans.length; i++) {
+                    const x = scaleX(i + 1);
+                    const y = scaleY(collectedMeans[i]);
+                    if (i === 0) ctx.moveTo(x, y);
+                    else ctx.lineTo(x, y);
+                }
+                ctx.stroke();
+
+                // 画点
+                for (let i = 0; i < collectedMeans.length; i++) {
+                    const x = scaleX(i + 1);
+                    const y = scaleY(collectedMeans[i]);
+                    ctx.fillStyle = '#2c3e50';
+                    ctx.beginPath();
+                    ctx.arc(x, y, 5, 0, 2 * Math.PI);
+                    ctx.fill();
+                    ctx.strokeStyle = 'white';
+                    ctx.lineWidth = 1.5;
+                    ctx.stroke();
+                    // 数值标签
+                    ctx.fillStyle = '#2c3e50';
+                    ctx.font = 'bold 10px "PingFang SC","Microsoft YaHei",sans-serif';
+                    ctx.fillText(collectedMeans[i].toFixed(2) + '%', x - 14, y - 10);
+                }
+            }
+
+            // 如果已经抽完10次，显示总结文字
+            if (collectedMeans.length === totalSamples) {
+                ctx.fillStyle = '#2c3e50';
+                ctx.font = 'italic 13px "PingFang SC","Microsoft YaHei",sans-serif';
+                ctx.fillText('✓ 10次抽样完成，样本均值围绕总体均值波动', margin.left + 80, margin.top + 15);
+            }
+        }
+
+        // 添加一个样本均值点
+        function addSamplePoint(meanValue) {
+            if (currentIndex >= totalSamples) return;
+            collectedMeans.push(meanValue);
+            currentIndex++;
+            // 更新UI
+            sampleCountSpan.textContent = currentIndex;
+            currentMeanSpan.textContent = meanValue.toFixed(2) + '%';
+            // 显示勺子旁边的数值气泡
+            spoonValueDiv.textContent = meanValue.toFixed(2) + '%';
+            spoonValueDiv.style.display = 'block';
+            setTimeout(() => {
+                spoonValueDiv.style.display = 'none';
+            }, 2000);
+            // 重绘图表
+            drawChart();
+            // 更新按钮状态
+            if (currentIndex >= totalSamples) {
+                scoopBtn.disabled = true;
+                insightText.innerHTML = '✅ 10次抽样结束。样本均值在0.76%~0.83%之间波动，没有一次恰好等于0.80%。<br> 💡 这就是统计量的随机性：单次样本提供的是“迹象”而非“定论”。';
+            }
+        }
+
+        // 舀一勺的完整动作
+        function scoopAction() {
+            if (isAnimating || currentIndex >= totalSamples) return;
+            // 取出当前应使用的样本均值
+            const nextMean = sampleMeans[currentIndex];
+            // 执行勺子动画，动画结束后添加点
+            animateSpoon(() => {
+                addSamplePoint(nextMean);
+            });
+        }
+
+        // 重置整个演示
+        function resetAll() {
+            // 停止可能正在进行的动画 (简单处理：直接重置位置)
+            spoon.style.top = '5px';
+            isAnimating = false;
+            spoonValueDiv.style.display = 'none';
+            currentIndex = 0;
+            collectedMeans = [];
+            sampleCountSpan.textContent = '0';
+            currentMeanSpan.textContent = '--';
+            scoopBtn.disabled = false;
+            insightText.innerHTML = '💡 每一次舀出的样本均值都不同，它们围绕总体均值0.80%上下波动，但没有一次恰好等于0.80%——这就是统计量的随机性。';
+            drawChart();
+        }
+
+        // 初始绘制
+        drawChart();
+
+        // 绑定事件
+        scoopBtn.addEventListener('click', scoopAction);
+        resetBtn.addEventListener('click', resetAll);
+
+        // 可选：键盘空格键也能舀一勺
+        window.addEventListener('keydown', (e) => {
+            if (e.code === 'Space' && !isAnimating && currentIndex < totalSamples) {
+                e.preventDefault();
+                scoopAction();
+            }
+        });
+    })();
+</script>
+</body>
+</html>
